@@ -1,0 +1,41 @@
+name: Azure Container Registry + Azure Web App for Containers
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Login no Azure Container Registry
+      uses: Azure/docker-login@v1
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        login-server: ${{ secrets.DOCKER_CONTAINER_REGISTRY }}
+
+    - name: Build e Push no Azure Container Registry
+      run: |
+        cd ./APIAcoes
+        docker build . --file Dockerfile --tag ${{ secrets.DOCKER_CONTAINER_REGISTRY }}/${{ secrets.NOME_IMAGEM }}:$GITHUB_RUN_NUMBER
+        docker tag ${{ secrets.DOCKER_CONTAINER_REGISTRY }}/${{ secrets.NOME_IMAGEM }}:$GITHUB_RUN_NUMBER ${{ secrets.DOCKER_CONTAINER_REGISTRY }}/${{ secrets.NOME_IMAGEM }}:latest
+        docker push ${{ secrets.DOCKER_CONTAINER_REGISTRY }}/${{ secrets.NOME_IMAGEM }}
+
+    - name: Logando no Azure para Deployment
+      uses: Azure/login@v1.1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Azure WebApp Container - Deployment da Aplicacao
+      uses: Azure/webapps-container-deploy@v1
+      with:
+        app-name: ${{ secrets.WEB_APP }}
+        images: ${{ secrets.DOCKER_CONTAINER_REGISTRY }}/${{ secrets.NOME_IMAGEM }}:latest
